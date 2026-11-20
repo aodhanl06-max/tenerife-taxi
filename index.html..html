@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tenerife Taxi</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--bg:#fff;--card:#f3f5f6;--tx:#12201a;--mut:#6a7771;--pri:#34d186;--ink:#06271a;--ln:#e0e5e2}
+@media(prefers-color-scheme:dark){:root{--bg:#151c19;--card:#202a26;--tx:#eef3f0;--mut:#98a69f;--ln:#2f3b36}}
+*{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden}
+body{background:#aad3f0;color:var(--tx);font:16px/1.35 system-ui,sans-serif}
+#map{position:fixed;inset:0}.leaflet-top{top:env(safe-area-inset-top,0px)}
+.fab{position:fixed;left:12px;top:calc(env(safe-area-inset-top,0px) + 12px);width:44px;height:44px;border-radius:12px;border:0;background:var(--bg);color:#0a84ff;font-size:22px;box-shadow:0 1px 6px rgba(0,0,0,.3);z-index:1000}
+#sh{position:fixed;left:0;right:0;bottom:0;margin:auto;max-width:520px;background:var(--bg);border-radius:20px 20px 0 0;padding:10px 14px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 20px rgba(0,0,0,.2);max-height:64%;overflow:auto;z-index:1000}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--ln);margin:0 auto 10px}
+.h{font-size:20px;display:block;margin-bottom:8px}
+.inp{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:0 12px;margin-bottom:8px}
+.inp input{flex:1;border:0;background:none;color:var(--tx);font-size:16px;padding:13px 0;outline:0;min-width:0}
+.dot{width:10px;height:10px;border-radius:50%;background:#0a84ff}.dot.r{background:#ff3b30}
+.opt{padding:12px;border-bottom:1px solid var(--ln)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.chips span{background:var(--card);padding:8px 12px;border-radius:20px;font-size:14px}
+.mut{color:var(--mut);font-size:13px}
+.o{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;border:2px solid transparent;margin-bottom:6px;background:var(--card)}
+.o>div{flex:1}.o.sel{border-color:var(--pri)}.car{font-size:28px}
+.btn{width:100%;padding:14px;border:0;border-radius:12px;background:var(--pri);color:var(--ink);font-weight:700;font-size:17px;margin-top:8px}
+.btn.sec{background:var(--card);color:var(--tx)}
+select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);font-size:16px;margin-top:6px}
+.bar{height:5px;background:var(--card);border-radius:3px;overflow:hidden;margin:12px 0}.bar i{display:block;height:100%;width:35%;background:var(--pri);animation:m 1s infinite ease-in-out}
+@keyframes m{0%{margin-left:-35%}100%{margin-left:100%}}
+.drv{display:flex;align-items:center;gap:12px}.av{width:48px;height:48px;border-radius:50%;background:var(--pri);color:var(--ink);display:grid;place-items:center;font-weight:800;font-size:20px}
+.row2{display:flex;gap:8px}.big{font-size:30px;font-weight:800}
+#ov{position:fixed;inset:0;background:var(--bg);z-index:2000;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 20px;overflow:auto}
+.hide{display:none}.ml{display:flex;justify-content:space-between;padding:6px 0}
+label{font-size:13px;color:var(--mut);display:block;margin:10px 0 3px}
+#ov input[type=number]{width:100%;padding:10px;border-radius:8px;border:1px solid var(--ln);background:var(--card);color:var(--tx);font-size:16px}
+.item{padding:16px 4px;border-bottom:1px solid var(--ln);font-size:18px}
+</style></head><body>
+<div id="map"></div><div id="err" class="hide" style="position:fixed;top:70px;left:12px;right:12px;z-index:1001;background:#fff3cd;color:#5c4400;padding:12px;border-radius:10px;font-size:14px">The map pictures could not load. Open this file in a normal browser (Chrome or Safari), not inside a chat preview, and check your internet connection.</div>
+<button class="fab" onclick="openP('menu')" aria-label="Menu">☰</button>
+<div id="sh"></div><div id="ov" class="hide"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+var $=function(i){return document.getElementById(i)},K=['from','to'];
+var Q=[{n:'TFS Airport (Reina Sofía)',lat:28.0445,lon:-16.5725},{n:'Los Cristianos',lat:28.0508,lon:-16.7172},{n:'Playa de las Américas',lat:28.0600,lon:-16.7270},{n:'Costa Adeje',lat:28.0870,lon:-16.7380},{n:'Siam Park',lat:28.0720,lon:-16.7280}];
+var S={from:Q[0],to:null,opt:0,pay:'Card'},st='idle',R=null,RS=[],done=[],mk={},rt=null,car=null,iv,tm,gt;
+var CFG={rate:10,base:3.2,perkm:1.15,minf:5},MULT=[1,1.2,1.3],ON=['Taxi','Taxi Comfort','Taxi XL'],ETA=[4,5,7],SUB=['1-4 seats · meter price','Newer car · +20%','Minivan, up to 8 · +30%'];
+var map=L.map('map',{zoomControl:false}).setView([28.07,-16.68],11);
+var dk=matchMedia('(prefers-color-scheme: dark)').matches;var tl=L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/'+(dk?'dark_all':'voyager')+'/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'© OpenStreetMap contributors © CARTO'}).addTo(map);var te=0;tl.on('tileerror',function(){if(!te++)$('err').classList.remove('hide')});
+L.control.zoom({position:'topright'}).addTo(map);
+function short(p){return p.n.split(' (')[0]}
+function drawMk(){[['from','#0a84ff'],['to','#ff3b30']].forEach(function(k){if(mk[k[0]]){map.removeLayer(mk[k[0]]);mk[k[0]]=null}var p=S[k[0]];if(p)mk[k[0]]=L.circleMarker([p.lat,p.lon],{radius:9,color:'#fff',weight:3,fillColor:k[1],fillOpacity:1}).addTo(map)})}
+function hav(a,b){var r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lon-a.lon)*r,h=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)*Math.sin(dn/2);return 2*6371*Math.asin(Math.sqrt(h))}
+function fare(km,o){return Math.max(CFG.minf,CFG.base+km*CFG.perkm)*MULT[o]}
+function getRoute(){var a=S.from,b=S.to;return fetch('https://router.project-osrm.org/route/v1/driving/'+a.lon+','+a.lat+';'+b.lon+','+b.lat+'?overview=full&geometries=geojson').then(function(r){return r.json()}).then(function(d){var r=d.routes[0];return{km:r.distance/1000,min:Math.round(r.duration/60),real:1,co:r.geometry.coordinates.map(function(c){return[c[1],c[0]]})}}).catch(function(){var km=hav(a,b)*1.35;return{km:km,min:Math.round(km/.7+3),real:0,co:[[a.lat,a.lon],[b.lat,b.lon]]}}).then(function(r){if(S.to!==b||S.from!==a)return;R=r;if(rt)map.removeLayer(rt);rt=L.polyline(r.co,{color:'#0a84ff',weight:5}).addTo(map);map.fitBounds(rt.getBounds(),{paddingTopLeft:[30,70],paddingBottomRight:[30,340]});if(st=='options')render()})}
+function toOptions(){st='options';R=null;if(rt){map.removeLayer(rt);rt=null}render();getRoute()}
+function pick(w,p){S[K[w]]=p;drawMk();if(S.from&&S.to)toOptions();else{$(K[w]+'I').value=p.n;$('sg').innerHTML='';map.setView([p.lat,p.lon],14)}}
+function pickR(w,i){pick(w,RS[i])}
+function sug(w){var v=$(K[w]+'I').value.trim();clearTimeout(gt);if(v.length<3){$('sg').innerHTML='<div class="opt mut">Type at least 3 letters (hotel, street, town…)</div>';return}
+$('sg').innerHTML='<div class="opt mut">Searching…</div>';gt=setTimeout(function(){fetch('https://photon.komoot.io/api/?limit=6&lat=28.07&lon=-16.7&bbox=-16.95,27.95,-16.35,28.35&q='+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){RS=d.features.map(function(f){var a=f.properties;return{n:[a.name,a.street,a.district||a.city].filter(Boolean).join(', '),lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0]}});$('sg').innerHTML=RS.length?RS.map(function(p,i){return '<div class="opt" onclick="pickR('+w+','+i+')">📍 '+p.n+'</div>'}).join(''):'<div class="opt mut">Nothing found in South Tenerife. Tap the map to drop a pin.</div>'}).catch(function(){$('sg').innerHTML='<div class="opt mut">Search unavailable. Tap the map to drop a pin.</div>'})},500)}
+function typed(w){S[K[w]]=null;drawMk();sug(w)}
+function myLoc(){navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(g){pick(0,{n:'My location',lat:g.coords.latitude,lon:g.coords.longitude})},function(){alert('Location not available. Type your pickup instead.')})}
+map.on('click',function(e){if(st!='idle'&&st!='options')return;var p={n:'Pinned location',lat:e.latlng.lat,lon:e.latlng.lng};pick(1,p);fetch('https://photon.komoot.io/reverse?lon='+p.lon+'&lat='+p.lat).then(function(r){return r.json()}).then(function(d){var f=d.features&&d.features[0];if(!f)return;var a=f.properties,n=[a.name||a.street,a.district||a.city].filter(Boolean).join(', ');if(n){p.n=n;if(S.to===p)render()}}).catch(function(){})});
+function render(){var s=$('sh'),h='';
+if(st=='idle'){s.innerHTML='<div class="grab"></div><b class="h">Where to?</b><div class="inp"><span class="dot"></span><input id="fromI" placeholder="Pickup" autocomplete="off" oninput="typed(0)" onfocus="sug(0)"></div><div class="inp"><span class="dot r"></span><input id="toI" placeholder="Search any hotel, street or town" autocomplete="off" oninput="typed(1)" onfocus="sug(1)"></div><div id="sg"></div><div class="chips"><span onclick="myLoc()">🎯 My location</span>'+Q.slice(1).map(function(p,i){return '<span onclick="pick(1,Q['+(i+1)+'])">📍 '+short(p)+'</span>'}).join('')+'</div><div class="mut">Or tap the map to drop a pin.</div>';if(S.from)$('fromI').value=S.from.n;if(S.to)$('toI').value=S.to.n}
+else if(st=='options'){h='<div class="grab"></div><b class="h">'+short(S.from)+' → '+short(S.to)+'</b>';
+if(!R)h+='<div class="bar"><i></i></div><div class="mut">Calculating route…</div>';else{h+='<div class="mut" style="margin-bottom:8px">'+R.km.toFixed(1)+' km · about '+R.min+' min'+(R.real?'':' (estimate, routing offline)')+'</div>';[0,1,2].forEach(function(o){h+='<div class="o'+(o==S.opt?' sel':'')+'" onclick="S.opt='+o+';render()"><span class="car">🚕</span><div><b>'+ON[o]+'</b><div class="mut">'+ETA[o]+' min away · '+SUB[o]+'</div></div><b>€'+fare(R.km,o).toFixed(2)+'</b></div>'});h+='<select onchange="S.pay=this.value"><option'+(S.pay=='Card'?' selected':'')+'>Card</option><option'+(S.pay=='Cash'?' selected':'')+'>Cash</option></select><button class="btn" onclick="order()">Order '+ON[S.opt]+'</button>'}
+h+='<button class="btn sec" onclick="back()">Change route</button>';s.innerHTML=h}
+else if(st=='searching'){s.innerHTML='<div class="grab"></div><b class="h">Finding your driver…</b><div class="bar"><i></i></div><button class="btn sec" onclick="cancel()">Cancel</button>'}
+else if(st=='pickup'||st=='trip'){s.innerHTML='<div class="grab"></div><b class="h" id="etx"></b><div class="drv"><div class="av">C</div><div style="flex:1"><b>Carlos M. ★ 4.9</b><div class="mut">Toyota Prius · 1234 KLM</div></div></div><div class="row2"><button class="btn sec" onclick="alert(\'Demo only: calling goes live in the real app\')">📞 Call</button><button class="btn sec" onclick="alert(\'Demo only: chat goes live in the real app\')">💬 Message</button></div>'+(st=='pickup'?'<button class="btn sec" onclick="cancel()">Cancel ride</button>':'')}
+else if(st=='done'){var r=done[done.length-1];s.innerHTML='<div class="grab"></div><b class="h">You have arrived</b><div class="big">€'+r.fare.toFixed(2)+'</div><div class="mut">Pay driver by '+S.pay.toLowerCase()+'. Rate Carlos:</div><div style="font-size:32px" onclick="rate(event)">☆☆☆☆☆</div><div class="row2"><button class="btn sec" onclick="tip(1)">+€1 tip</button><button class="btn sec" onclick="tip(2)">+€2 tip</button></div><button class="btn" onclick="reset()">Done</button>'}}
+function back(){st='idle';render()}
+function reset(){S.to=null;R=null;if(rt){map.removeLayer(rt);rt=null}drawMk();st='idle';render();map.setView([28.07,-16.68],11)}
+function carAt(p){if(!car)car=L.marker(p,{icon:L.divIcon({html:'<div style="font-size:26px">🚕</div>',className:'',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);else car.setLatLng(p)}
+function order(){st='searching';render();tm=setTimeout(function(){var a=[S.from.lat,S.from.lon],co=R.co,km=R.km,o=S.opt,ph=0,t=0,b0=[a[0]-.007,a[1]-.007];st='pickup';render();
+iv=setInterval(function(){t+=ph?.008:.02;if(t>=1){if(!ph){ph=1;t=0;st='trip';render()}else{clearInterval(iv);if(car){map.removeLayer(car);car=null}done.push({fare:fare(km,o),tip:0,from:S.from.n,to:S.to.n});st='done';render();return}}
+var p;if(!ph)p=[b0[0]+(a[0]-b0[0])*t,b0[1]+(a[1]-b0[1])*t];else{var f=t*(co.length-1),i=Math.min(co.length-2,Math.floor(f)),u=f-i;p=[co[i][0]+(co[i+1][0]-co[i][0])*u,co[i][1]+(co[i+1][1]-co[i][1])*u]}
+carAt(p);var e=$('etx');if(e)e.textContent=ph?'On the way to '+short(S.to):'Driver arrives in '+Math.max(1,Math.ceil((1-t)*ETA[o]))+' min'},60)},1800)}
+function cancel(){clearTimeout(tm);clearInterval(iv);if(car){map.removeLayer(car);car=null}st='options';render()}
+function rate(e){var r=Math.min(5,Math.max(1,Math.ceil((e.clientX-e.currentTarget.getBoundingClientRect().left)/32)));e.currentTarget.textContent='★'.repeat(r)+'☆'.repeat(5-r)}
+function tip(n){done[done.length-1].tip=n;alert('€'+n+' tip added. Thank you!')}
+function tot(){var t=0,tp=0;done.forEach(function(r){t+=r.fare;tp+=r.tip});return{t:t,tp:tp,c:t*CFG.rate/100}}
+function openP(k){var o=$('ov'),x=tot(),h='<button class="btn sec" style="margin:0 0 12px" onclick="$(\'ov\').classList.add(\'hide\')">← Back to map</button>';
+if(k=='menu')h+='<div class="item" onclick="openP(\'driver\')">🚖 Driver mode</div><div class="item" onclick="openP(\'founder\')">📊 Founder dashboard</div><div class="item" onclick="$(\'ov\').classList.add(\'hide\')">🗺️ Book a ride</div>';
+if(k=='driver'){h+='<b class="h">Driver mode</b><div class="ml"><span>Rides today</span><b>'+done.length+'</b></div><div class="ml"><span>You earn (after '+CFG.rate+'% commission)</span><b>€'+(x.t-x.c+x.tp).toFixed(2)+'</b></div>'+done.map(function(r){return '<div class="opt">'+r.from.split(',')[0]+' → '+r.to.split(',')[0]+'<div class="mut">Fare €'+r.fare.toFixed(2)+' · you keep €'+(r.fare*(1-CFG.rate/100)).toFixed(2)+'</div></div>'}).join('');if(!done.length)h+='<div class="mut">No rides yet. Order one from the map.</div>'}
+if(k=='founder')h+='<b class="h">Founder dashboard</b><label>Commission (%)</label><input type="number" value="'+CFG.rate+'" oninput="CFG.rate=+this.value;ft()"><label>Starting fee (€)</label><input type="number" step=".1" value="'+CFG.base+'" oninput="CFG.base=+this.value"><label>Rate per km (€)</label><input type="number" step=".05" value="'+CFG.perkm+'" oninput="CFG.perkm=+this.value"><label>Minimum fare (€)</label><input type="number" step=".5" value="'+CFG.minf+'" oninput="CFG.minf=+this.value"><div class="mut">Placeholder prices. Check the official Tenerife taxi tariff.</div><div id="ft"></div>';
+o.innerHTML=h;o.classList.remove('hide');if(k=='founder')ft()}
+function ft(){var x=tot();$('ft').innerHTML='<div class="ml" style="margin-top:14px"><span>Completed rides</span><b>'+done.length+'</b></div><div class="ml"><span>Total fares</span><b>€'+x.t.toFixed(2)+'</b></div><div class="ml"><span>Your commission</span><span class="big">€'+x.c.toFixed(2)+'</span></div><div class="ml"><span>Paid to drivers</span><b>€'+(x.t-x.c).toFixed(2)+'</b></div>'}
+drawMk();render();
+</script></body></html>
